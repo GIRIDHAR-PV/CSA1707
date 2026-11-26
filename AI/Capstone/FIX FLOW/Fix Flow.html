@@ -1,0 +1,220 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Fix Flow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@600;700&display=swap">
+<style>
+/* Layout: sticky top bar, three views (Submit / Track / Admin) in a 1100px column; admin is a scannable table with severity stripes */
+:root{
+  --bg:#f3f6f6; --surface:#ffffff; --ink:#14282b; --mute:#5d7275; --line:#dbe4e5;
+  --accent:#0b7a75; --accent-ink:#ffffff; --accent-soft:#dcefee;
+  --high:#c62828; --high-soft:#fde8e8; --med:#b26a00; --med-soft:#fdf0d8; --low:#2e7d32; --low-soft:#e3f3e4;
+  --display:'Sora',system-ui,sans-serif; --body:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1819; --surface:#142325; --ink:#e4efef; --mute:#93a9ab; --line:#25393b;
+  --accent:#3fc1ba; --accent-ink:#06201f; --accent-soft:#17383a;
+  --high:#ff7a7a; --high-soft:#3a1c1c; --med:#f0b04a; --med-soft:#3a2d14; --low:#7fd183; --low-soft:#1b3320; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1819; --surface:#142325; --ink:#e4efef; --mute:#93a9ab; --line:#25393b;
+  --accent:#3fc1ba; --accent-ink:#06201f; --accent-soft:#17383a;
+  --high:#ff7a7a; --high-soft:#3a1c1c; --med:#f0b04a; --med-soft:#3a2d14; --low:#7fd183; --low-soft:#1b3320; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--body);margin:0;padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1100px;margin:0 auto}
+nav{display:flex;align-items:center;gap:6px;padding:14px 0;flex-wrap:wrap}
+.brand{font:700 1.3rem var(--display);margin-right:auto;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.brand svg{width:26px;height:26px}
+nav button{background:none;border:0;color:var(--mute);font:500 .95rem var(--body);padding:8px 14px;border-radius:8px;cursor:pointer}
+nav button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+nav button:hover{color:var(--ink)}
+h1{font:700 1.7rem/1.2 var(--display);letter-spacing:-.02em;margin:8px 0 6px;text-wrap:balance}
+h2{font:600 1.1rem var(--display);margin:0 0 10px}
+.sub{color:var(--mute);margin:0 0 20px;max-width:62ch}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px}
+.grid2{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;align-items:start}
+@media(max-width:800px){.grid2{grid-template-columns:minmax(0,1fr)}}
+label{display:block;font-weight:600;font-size:.85rem;margin:14px 0 5px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:130px;resize:vertical}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:10px 20px;font:600 .95rem var(--body);cursor:pointer}
+.btn.ghost{background:none;color:var(--accent);border:1px solid var(--line)}
+.btn.sm{padding:6px 12px;font-size:.85rem}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{background:var(--accent-soft);color:var(--accent);border:0;border-radius:99px;padding:5px 12px;font:500 .8rem var(--body);cursor:pointer;text-align:left}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:.78rem;font-weight:600}
+.pill.High{background:var(--high-soft);color:var(--high)}.pill.Medium{background:var(--med-soft);color:var(--med)}.pill.Low{background:var(--low-soft);color:var(--low)}
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px 12px;margin:0}.kv dt{color:var(--mute);font-size:.85rem}.kv dd{margin:0;overflow-wrap:anywhere}
+.mono{font-family:var(--mono)}
+.pipe{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.pipe span{font-size:.8rem;padding:4px 10px;border-radius:6px;background:var(--surface);border:1px solid var(--line);color:var(--mute)}
+.idle{color:var(--mute);font-size:.92rem}
+.ticket{font:500 1.5rem var(--mono);color:var(--accent)}
+.steps{display:flex;gap:0;margin:14px 0 18px}
+.steps div{flex:1;text-align:center;padding:8px 4px;font-size:.85rem;border-bottom:3px solid var(--line);color:var(--mute)}
+.steps div.on{border-color:var(--accent);color:var(--ink);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.stat b{font:700 1.9rem var(--display);display:block;font-variant-numeric:tabular-nums}.stat span{color:var(--mute);font-size:.85rem}
+.bars{display:grid;gap:6px}.bar{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr) 28px;gap:10px;align-items:center;font-size:.88rem}
+.bar i{display:block;height:10px;border-radius:5px;background:var(--accent)}.bar em{font-style:normal;font-variant-numeric:tabular-nums;text-align:right}
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin:16px 0}
+@media(max-width:700px){.filters{grid-template-columns:1fr 1fr}.filters input{grid-column:1/-1}}
+.tw{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:.9rem}
+th{color:var(--mute);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em}
+tr:last-child td{border-bottom:0}
+tr.High td:first-child{box-shadow:inset 3px 0 0 var(--high)}tr.Medium td:first-child{box-shadow:inset 3px 0 0 var(--med)}tr.Low td:first-child{box-shadow:inset 3px 0 0 var(--low)}
+tr.done{opacity:.55}
+td select,td input{padding:5px 8px;font-size:.85rem}
+.flag{color:var(--med);font-weight:600;font-size:.8rem}
+.small{color:var(--mute);font-size:.82rem}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;font-size:.9rem;z-index:20}
+.note{background:var(--accent-soft);color:var(--ink);border-radius:8px;padding:8px 12px;font-size:.85rem;margin-bottom:16px}
+@media(prefers-reduced-motion:no-preference){.panel{animation:in .25s ease-out}@keyframes in{from{opacity:.4;transform:translateY(4px)}}}
+</style>
+
+<div class="wrap">
+  <nav>
+    <div class="brand"><svg viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="7" fill="var(--accent)"/><path d="M6 9h9a3 3 0 0 1 0 6H9M6 17h5" stroke="var(--accent-ink)" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M17 14l3 3 3-3" stroke="var(--accent-ink)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(-2 -2)"/></svg>Fix Flow</div>
+    <button data-view="submit">Submit</button><button data-view="track">Track</button><button data-view="admin">Admin</button>
+  </nav>
+  <div class="note">Demo mode: the AI runs in your browser and data stays on this device. Sample complaints are preloaded.</div>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+/* ---------- NLP engine (browser port of nlp.py) ---------- */
+const INFO={"Electrical / Maintenance":["Maintenance team","Medium"],"Safety / Urgent":["Security & Safety office","High"],"IT / Network":["IT support","Medium"],"Cleanliness":["Housekeeping","Low"],"Academic":["Academic office","Low"]};
+const DATA={
+"Electrical / Maintenance":["The fan in Room 204 is not working","tube light is not working in the classroom","switch board is broken in lab 3","socket in hostel room is loose and not giving power","ceiling fan makes loud noise and wobbles","AC is not cooling in seminar hall","bulb fused in the corridor","door lock of my room is broken","bench in class is broken","tap is not working in the hostel bathroom","window glass is cracked in class 5","no power supply in block B since morning","water cooler is not working on second floor","light flickering in the library","chair is damaged in the lecture hall","fan regulator is faulty in room 12"],
+"Safety / Urgent":["There is sparking from the switch board in room 110","fire near the canteen kitchen","water leak near electrical wiring in the lab","a student got injured on the staircase","exposed live wires in the corridor","smell of gas in the chemistry lab","ceiling is falling down in the classroom","someone is harassing students near the hostel gate","short circuit and smoke from the AC","fire extinguisher is missing and there is smoke in the lab","emergency medical help needed a student fainted","ragging complaint in hostel block C","dangerous broken glass on the floor injury risk","stray dogs attacking students near the gate","electric shock from the water cooler","pipe burst and flooding near the power room"],
+"IT / Network":["Wi-Fi is not working in the library","projector is not turning on in class 3","computer in lab 2 is not booting","internet is very slow in hostel","cannot login to the student portal","LMS website is down","printer in the lab is not working","no network connectivity in block A","keyboard and mouse are not working on the lab computer","email account is blocked","software not installed on lab systems","projector display is blurry and flickering","wifi password is not working","ERP portal shows error while paying fees","lab system hangs repeatedly","smart board is not responding"],
+"Cleanliness":["The washroom on first floor is very dirty","dustbin is overflowing near the canteen","classroom is not cleaned for days","bad smell in the hostel corridor","garbage is not collected near the playground","toilets have no water and are unclean","mess hall tables are dirty","cobwebs and dust in the lab","drinking water tank is dirty","washroom has no soap or tissue","floor is wet and dirty after rain","mosquitoes and stagnant water behind the block","canteen food area is unhygienic","dustbins are not placed in the corridor","sweeper has not cleaned the room","smelly drainage near the hostel"],
+"Academic":["The timetable has a clash on Wednesday","marks not updated in the portal","faculty is not taking classes regularly","internal assessment marks are wrong","exam hall ticket not generated","syllabus not completed before exams","need revaluation of my answer sheet","attendance is wrongly recorded","lab record submission date clarification","professor is not available for doubts","course registration is not opening","elective subject change request","result is not published yet","assignment marks missing for my subject","the class schedule changes without notice","scholarship form status is pending"]};
+const HIGH=/fire|spark\w*|smoke|leak\w*|injur\w*|shock|live wire|exposed|\bgas\b|harass\w*|ragging|emergency|flood\w*|short circuit|faint\w*|dangerous|attack\w*|collapse|falling/i;
+const URGENT=/urgent\w*|immediately|asap|right now|emergency/i;
+const LONG=/since (?:\w+ )?(?:days|week)|for (?:\w+ )?(?:days|weeks)|again and again|repeated\w*|exam/i;
+const toks=t=>{const w=t.toLowerCase().replace(/wi-fi/g,'wifi').match(/[a-z0-9]+/g)||[];const o=[...w];for(let i=0;i<w.length-1;i++)o.push(w[i]+'_'+w[i+1]);return o};
+const cats=Object.keys(DATA),counts={},vocab=new Set(),tot={};
+cats.forEach(c=>{counts[c]={};tot[c]=0;DATA[c].forEach(s=>toks(s).forEach(t=>{counts[c][t]=(counts[c][t]||0)+1;tot[c]++;vocab.add(t)}))});
+function classify(text){
+  const t=toks(text);const lp=cats.map(c=>{let s=0;t.forEach(w=>{s+=Math.log(((counts[c][w]||0)+.5)/(tot[c]+.5*vocab.size))});return s});
+  const m=Math.max(...lp),e=lp.map(x=>Math.exp(x-m)),z=e.reduce((a,b)=>a+b,0),p=e.map(x=>x/z),i=p.indexOf(Math.max(...p));
+  return [cats[i],p[i]];
+}
+function findLoc(text){
+  const pats=[/\b(?:room|class(?:room)?|lab|hall|block|floor|hostel)\s*(?:no\.?\s*)?[A-Za-z]?\d+[A-Za-z]?\b/i,/\b(?:library|canteen|mess|gate|playground|auditorium|seminar hall|washroom|cafeteria|parking)\b/i,/\b(?:[Bb]lock|[Hh]ostel)\s+[A-Z]\b/];
+  for(const p of pats){const m=text.match(p);if(m)return m[0].replace(/\b\w/g,c=>c.toUpperCase())}return"Not specified";
+}
+function analyse(text){
+  let [category,conf]=classify(text);
+  if(HIGH.test(text)&&category!=="Safety / Urgent"&&conf<.6)category="Safety / Urgent";
+  const base=INFO[category][1];let priority=base;
+  if(HIGH.test(text))priority="High";
+  else if(URGENT.test(text))priority={Low:"Medium",Medium:"High",High:"High"}[base];
+  else if(LONG.test(text)&&base==="Low")priority="Medium";
+  return{category,confidence:Math.round(conf*100)/100,priority,location:findLoc(text),department:INFO[category][0],needsReview:conf<.3};
+}
+
+/* ---------- storage ---------- */
+const KEY="fixflow-demo-v1";let mem=null;
+const now=()=>new Date().toLocaleString("en-GB",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+const tid=()=>"FF-"+Array.from({length:6},()=>"0123456789ABCDEF"[Math.random()*16|0]).join("");
+function seed(){
+  const S=[["The fan in Room 204 isn't working.","Arun K","In progress","Ravi (Maintenance)"],["Sparking from the switch board in lab 3, please come immediately","Meena S","Open",""],["Wi-Fi is not working in the library","Dev P","Resolved","IT desk"],["Washroom on first floor is very dirty","Sana R","Open",""],["Timetable has a clash on Wednesday","Karthik V","Open",""],["Projector not turning on in class 5","Lakshmi N","In progress","IT desk"],["Water leak near the wiring in Block B","Imran A","Open",""],["Dustbin overflowing near canteen","Priya D","Resolved","Housekeeping"],["Marks not updated in portal for my internal exam","Rohit M","Open",""],["Light not working in hostel room 12 for days","Anita J","Open",""]];
+  return S.map(([text,name,status,assigned],i)=>({id:"FF-"+(100200+i*377).toString(16).toUpperCase().padStart(6,"0"),name,email:"",text,...analyse(text),status,assigned,note:status==="Resolved"?"Fixed and verified.":"",created:now(),updated:now()}));
+}
+function load(){
+  if(mem)return mem;
+  try{const r=localStorage.getItem(KEY);if(r){mem=JSON.parse(r);return mem}}catch(e){}
+  mem=seed();save();return mem;
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(mem))}catch(e){}}
+
+/* ---------- ui ---------- */
+const $=s=>document.querySelector(s),main=$("#main");
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pill=p=>`<span class="pill ${p}">${p}</span>`;
+function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2200)}
+const VIEWS=["submit","track","admin"];
+let adminF={q:"",category:"",priority:"",status:""},trackId="";
+function go(v,id){if(id!==undefined)trackId=id;location.hash=v;render()}
+function render(){
+  let v=location.hash.slice(1);if(!VIEWS.includes(v))v="submit";
+  document.querySelectorAll("nav button").forEach(b=>b.setAttribute("aria-current",b.dataset.view===v?"page":"false"));
+  ({submit:viewSubmit,track:viewTrack,admin:viewAdmin})[v]();
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>go(b.dataset.view));
+addEventListener("hashchange",render);
+
+function viewSubmit(){
+  main.innerHTML=`<h1>Tell us what's wrong</h1><p class="sub">Write the problem the way you would say it. Fix Flow sorts it, ranks it and sends it to the right team.</p>
+  <div class="pipe"><span>Submit</span><span>Categorise</span><span>Prioritise</span><span>Store</span><span>Dashboard</span></div>
+  <div class="grid2"><form class="panel" id="f"><label for="text" style="margin-top:0">Complaint</label>
+  <textarea id="text" placeholder="e.g. The fan in Room 204 isn't working."></textarea>
+  <div class="chips" id="ex"></div>
+  <label for="name">Your name (optional)</label><input id="name" autocomplete="name">
+  <label for="email">Email for status alerts (optional)</label><input id="email" type="email" autocomplete="email">
+  <p style="margin:18px 0 0"><button class="btn" type="submit">Submit complaint</button></p></form>
+  <aside class="panel" aria-live="polite"><h2>What the AI sees</h2><div id="pv" class="idle">Start typing and the category, priority and location appear here.</div></aside></div>`;
+  const ex=["The fan in Room 204 isn't working.","Sparking from the socket in lab 3, urgent!","Wi-Fi is down in the library","Washroom near block B is dirty for days","Marks missing in the portal"];
+  $("#ex").innerHTML=ex.map(e=>`<button type="button" class="chip">${esc(e)}</button>`).join("");
+  const ta=$("#text"),pv=$("#pv");
+  const upd=()=>{const t=ta.value.trim();if(t.length<5){pv.className="idle";pv.textContent="Start typing and the category, priority and location appear here.";return}
+    const r=analyse(t);pv.className="";pv.innerHTML=result(r)};
+  ta.oninput=upd;
+  document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{ta.value=c.textContent;upd();ta.focus()});
+  $("#f").onsubmit=e=>{e.preventDefault();const t=ta.value.trim();if(t.length<8){toast("Add a little more detail so we can route it.");ta.focus();return}
+    const r=analyse(t),c={id:tid(),name:$("#name").value.trim(),email:$("#email").value.trim(),text:t,...r,status:"Open",assigned:"",note:"",created:now(),updated:now()};
+    load().unshift(c);save();done(c)};
+}
+function result(r){return`<dl class="kv"><dt>Category</dt><dd>${esc(r.category)}</dd><dt>Priority</dt><dd>${pill(r.priority)}</dd><dt>Location</dt><dd>${esc(r.location)}</dd><dt>Routed to</dt><dd>${esc(r.department)}</dd><dt>Confidence</dt><dd>${Math.round(r.confidence*100)}%${r.needsReview?' <span class="flag">An admin will double-check</span>':''}</dd></dl>`}
+function done(c){
+  main.innerHTML=`<h1>Complaint received</h1><div class="panel"><p class="sub" style="margin-bottom:6px">Your tracking ID. Keep it to follow progress.</p><div class="ticket">${c.id}</div>
+  <p class="small">“${esc(c.text)}”</p>${result(c)}<p style="margin:18px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="t">Track this complaint</button><button class="btn ghost" id="n">Submit another</button></p></div>`;
+  $("#t").onclick=()=>go("track",c.id);$("#n").onclick=()=>go("submit");
+}
+function viewTrack(){
+  main.innerHTML=`<h1>Track a complaint</h1><p class="sub">Enter the ID you received after submitting.</p><form class="panel" id="tf" style="display:flex;gap:8px;flex-wrap:wrap"><input id="tid" placeholder="FF-XXXXXX" value="${esc(trackId)}" style="flex:1;min-width:180px" class="mono" aria-label="Ticket ID"><button class="btn">Find</button></form><div id="tr" style="margin-top:16px"></div>`;
+  const show=()=>{const id=$("#tid").value.trim().toUpperCase();trackId=id;if(!id){$("#tr").innerHTML="";return}
+    const c=load().find(x=>x.id===id);if(!c){$("#tr").innerHTML=`<div class="panel idle">No complaint found with ID ${esc(id)}. Check the ID and try again.</div>`;return}
+    $("#tr").innerHTML=`<div class="panel"><div class="ticket">${c.id}</div><div class="steps">${["Open","In progress","Resolved"].map(s=>`<div class="${s===c.status?"on":""}">${s}</div>`).join("")}</div>
+    <dl class="kv"><dt>Complaint</dt><dd>${esc(c.text)}</dd><dt>Category</dt><dd>${esc(c.category)}</dd><dt>Priority</dt><dd>${pill(c.priority)}</dd><dt>Location</dt><dd>${esc(c.location)}</dd><dt>Routed to</dt><dd>${esc(c.department)}</dd><dt>Assigned to</dt><dd>${esc(c.assigned||"Not yet assigned")}</dd><dt>Note</dt><dd>${esc(c.note||"No note yet")}</dd><dt>Submitted</dt><dd>${c.created}</dd><dt>Last update</dt><dd>${c.updated}</dd></dl></div>`};
+  $("#tf").onsubmit=e=>{e.preventDefault();show()};show();
+}
+function viewAdmin(){
+  const all=load(),total=all.length,res=all.filter(c=>c.status==="Resolved").length;
+  const high=all.filter(c=>c.priority==="High"&&c.status!=="Resolved").length,rev=all.filter(c=>c.needsReview&&c.status!=="Resolved").length;
+  const by=Object.keys(INFO).map(k=>[k,all.filter(c=>c.category===k).length]).sort((a,b)=>b[1]-a[1]);
+  const opt=(a,v)=>`<option value="">All</option>`+a.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("");
+  main.innerHTML=`<h1>Admin dashboard</h1><p class="sub">Every complaint in one place, highest priority first.</p>
+  <div class="stats"><div class="stat"><b>${total}</b><span>Total complaints</span></div><div class="stat"><b style="color:var(--high)">${high}</b><span>High priority open</span></div><div class="stat"><b>${total?Math.round(100*res/total):0}%</b><span>Resolved</span></div><div class="stat"><b>${rev}</b><span>Need category review</span></div></div>
+  <div class="panel"><h2>Recurring issues</h2><div class="bars">${by.map(([k,n])=>`<div class="bar"><span>${k}</span><div><i style="width:${total?Math.max(2,100*n/total):0}%"></i></div><em>${n}</em></div>`).join("")}</div></div>
+  <div class="filters"><input id="q" placeholder="Search text, ID or location" value="${esc(adminF.q)}" aria-label="Search">
+  <select id="fc" aria-label="Category">${opt(Object.keys(INFO),adminF.category).replace(">All<",">All categories<")}</select><select id="fp" aria-label="Priority">${opt(["High","Medium","Low"],adminF.priority).replace(">All<",">All priorities<")}</select><select id="fs" aria-label="Status">${opt(["Open","In progress","Resolved"],adminF.status).replace(">All<",">All statuses<")}</select></div>
+  <div class="tw"><table><thead><tr><th>Complaint</th><th>AI result</th><th>Manage</th></tr></thead><tbody id="rows"></tbody></table></div>`;
+  const ord={High:0,Medium:1,Low:2};
+  const rows=()=>{const f=adminF,q=f.q.toLowerCase();
+    const list=load().filter(c=>(!f.category||c.category===f.category)&&(!f.priority||c.priority===f.priority)&&(!f.status||c.status===f.status)&&(!q||(c.text+c.id+c.location).toLowerCase().includes(q)))
+      .sort((a,b)=>(a.status==="Resolved")-(b.status==="Resolved")||ord[a.priority]-ord[b.priority]);
+    $("#rows").innerHTML=list.length?list.map(c=>`<tr class="${c.priority} ${c.status==="Resolved"?"done":""}" data-id="${c.id}"><td style="min-width:230px"><b class="mono">${c.id}</b> <span class="small">${c.created}</span><br>${esc(c.text)}<br><span class="small">${esc(c.name||"Anonymous")}</span></td>
+    <td>${esc(c.category)}<br>${pill(c.priority)} <span class="small">${esc(c.location)}</span><br><span class="small">${esc(c.department)} · ${Math.round(c.confidence*100)}%</span>${c.needsReview?'<br><span class="flag">Review category</span>':''}</td>
+    <td><div style="display:grid;gap:6px;grid-template-columns:repeat(2,minmax(110px,1fr))"><select data-k="status" aria-label="Status">${["Open","In progress","Resolved"].map(s=>`<option ${s===c.status?"selected":""}>${s}</option>`).join("")}</select>
+    <select data-k="priority" aria-label="Priority">${["High","Medium","Low"].map(s=>`<option ${s===c.priority?"selected":""}>${s}</option>`).join("")}</select>
+    <select data-k="category" aria-label="Category" style="grid-column:1/-1">${Object.keys(INFO).map(s=>`<option ${s===c.category?"selected":""}>${s}</option>`).join("")}</select>
+    <input data-k="assigned" placeholder="Assign to" value="${esc(c.assigned)}" aria-label="Assign to"><input data-k="note" placeholder="Note to student" value="${esc(c.note)}" aria-label="Note"><button class="btn sm" style="grid-column:1/-1">Save</button></div></td></tr>`).join(""):`<tr><td colspan="3" class="idle">No complaints match these filters.</td></tr>`;
+    $("#rows").querySelectorAll("tr[data-id] button").forEach(b=>b.onclick=()=>{const tr=b.closest("tr"),c=load().find(x=>x.id===tr.dataset.id),old=c.status;
+      tr.querySelectorAll("[data-k]").forEach(el=>c[el.dataset.k]=el.value.trim());c.department=INFO[c.category][0];c.needsReview=false;c.updated=now();save();
+      toast(c.id+" updated"+(c.status!==old?" · student alerted":""));viewAdmin()});
+  };
+  $("#q").oninput=e=>{adminF.q=e.target.value;rows()};
+  [["fc","category"],["fp","priority"],["fs","status"]].forEach(([id,k])=>$("#"+id).onchange=e=>{adminF[k]=e.target.value;rows()});
+  rows();
+}
+render();
+</script>
+
+</body></html>
